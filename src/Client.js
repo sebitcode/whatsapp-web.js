@@ -360,32 +360,15 @@ class Client extends EventEmitter {
     /**
      * Request authentication via pairing code instead of QR code
      * @param {string} phoneNumber - Phone number in international, symbol-free format (e.g. 12025550108 for US, 551155501234 for Brazil)
-     * @param {boolean} [showNotification = true] - Show notification to pair on phone number
-     * @param {number} [intervalMs = 180000] - The interval in milliseconds on how frequent to generate pairing code (WhatsApp default to 3 minutes)
+     * @param {boolean} showNotification - Show notification to pair on phone number
      * @returns {Promise<string>} - Returns a pairing code in format "ABCDEFGH"
      */
-    async requestPairingCode(phoneNumber, showNotification = true, intervalMs = 180000) {
-        return await this.pupPage.evaluate(async (phoneNumber, showNotification, intervalMs) => {
-            const getCode = async () => {
-                while (!window.AuthStore.PairingCodeLinkUtils) {
-                    await new Promise(resolve => setTimeout(resolve, 250));
-                }
-                window.AuthStore.PairingCodeLinkUtils.setPairingType('ALT_DEVICE_LINKING');
-                await window.AuthStore.PairingCodeLinkUtils.initializeAltDeviceLinking();
-                return window.AuthStore.PairingCodeLinkUtils.startAltLinkingFlow(phoneNumber, showNotification);
-            };
-            if (window.codeInterval) {
-                clearInterval(window.codeInterval); // remove existing interval
-            }
-            window.codeInterval = setInterval(async () => {
-                if (window.AuthStore.AppState.state != 'UNPAIRED' && window.AuthStore.AppState.state != 'UNPAIRED_IDLE') {
-                    clearInterval(window.codeInterval);
-                    return;
-                }
-                window.onCodeReceivedEvent(await getCode());
-            }, intervalMs);
-            return window.onCodeReceivedEvent(await getCode());
-        }, phoneNumber, showNotification, intervalMs);
+    async requestPairingCode(phoneNumber, showNotification = true) {
+        return await this.pupPage.evaluate(async (phoneNumber, showNotification) => {
+            window.AuthStore.PairingCodeLinkUtils.setPairingType('ALT_DEVICE_LINKING');
+            await window.AuthStore.PairingCodeLinkUtils.initializeAltDeviceLinking();
+            return window.AuthStore.PairingCodeLinkUtils.startAltLinkingFlow(phoneNumber, showNotification);
+        }, phoneNumber, showNotification);
     }
 
     /**
