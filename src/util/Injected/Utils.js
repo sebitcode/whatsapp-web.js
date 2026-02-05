@@ -17,11 +17,10 @@ exports.LoadUtils = () => {
 
             window.Store.WAWebStreamModel.Stream.markAvailable();
 
-            if (window.Store.SendSeen.markSeen) {
-                await window.Store.SendSeen.markSeen(chat);
-            } else {
-                await window.Store.SendSeen.sendSeen(chat);
-            }
+            await window.Store.SendSeen.sendSeen({
+                chat: chat,
+                threadId: undefined
+            });
 
             window.Store.WAWebStreamModel.Stream.markUnavailable();
             return true;
@@ -653,7 +652,9 @@ exports.LoadUtils = () => {
         if (chat.groupMetadata) {
             model.isGroup = true;
             const chatWid = window.Store.WidFactory.createWid(chat.id._serialized);
-            await window.Store.GroupMetadata.update(chatWid);
+            if (window.Store.GroupMetadata && typeof window.Store.GroupMetadata.update === 'function') {
+                await window.Store.GroupMetadata.update(chatWid);
+            }
             chat.groupMetadata.participants._models
                 .filter(x => x.id?._serialized?.endsWith('@lid'))
                 .forEach(x => x.contact?.phoneNumber && (x.id = x.contact.phoneNumber));
@@ -662,7 +663,9 @@ exports.LoadUtils = () => {
         }
 
         if (chat.newsletterMetadata) {
-            await window.Store.NewsletterMetadataCollection.update(chat.id);
+            if (window.Store.NewsletterMetadataCollection && typeof window.Store.NewsletterMetadataCollection.update === 'function') {
+                await window.Store.NewsletterMetadataCollection.update(chat.id);
+            }
             model.channelMetadata = chat.newsletterMetadata.serialize();
             model.channelMetadata.createdAtTs = chat.newsletterMetadata.creationTime;
         }
