@@ -285,8 +285,16 @@ class Client extends EventEmitter {
             await this.pupPage.waitForNavigation({waitUntil: 'load', timeout: 5000}).catch((_) => _);
         });
         await this.pupPage.evaluate(() => {
-            window.AuthStore.AppState.on('change:state', (_AppState, state) => { window.onAuthAppStateChangedEvent(state); });
-            window.AuthStore.AppState.on('change:hasSynced', () => { window.onAppStateHasSyncedEvent(); });
+            const appState = window.AuthStore.AppState;
+            if (appState.hasSynced) {
+                window.onAppStateHasSyncedEvent();
+            }
+            appState.on('change:hasSynced', (_AppState, hasSynced) => {
+                if (hasSynced) {
+                    window.onAppStateHasSyncedEvent();
+                }
+            });
+            appState.on('change:state', (_AppState, state) => { window.onAuthAppStateChangedEvent(state); });
             window.AuthStore.Cmd.on('offline_progress_update_from_bridge', () => {
                 window.onOfflineProgressUpdateEvent(window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress()); 
             });
@@ -751,13 +759,25 @@ class Client extends EventEmitter {
         });
 
         await this.pupPage.evaluate(() => {
-            window.Store.Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
-            window.Store.Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
-            window.Store.Msg.on('change:ack', (msg, ack) => { window.onMessageAckEvent(window.WWebJS.getMessageModel(msg), ack); });
-            window.Store.Msg.on('change:isUnsentMedia', (msg, unsent) => { if (msg.id.fromMe && !unsent) window.onMessageMediaUploadedEvent(window.WWebJS.getMessageModel(msg)); });
-            window.Store.Msg.on('remove', (msg) => { if (msg.isNewMsg) window.onRemoveMessageEvent(window.WWebJS.getMessageModel(msg)); });
-            window.Store.Msg.on('change:body change:caption', (msg, newBody, prevBody) => { window.onEditMessageEvent(window.WWebJS.getMessageModel(msg), newBody, prevBody); });
-            window.Store.AppState.on('change:state', (_AppState, state) => { window.onAppStateChangedEvent(state); });
+            if(window.Store.Msg){
+                window.Store.Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
+                window.Store.Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
+                window.Store.Msg.on('change:ack', (msg, ack) => { window.onMessageAckEvent(window.WWebJS.getMessageModel(msg), ack); });
+                window.Store.Msg.on('change:isUnsentMedia', (msg, unsent) => { if (msg.id.fromMe && !unsent) window.onMessageMediaUploadedEvent(window.WWebJS.getMessageModel(msg)); });
+                window.Store.Msg.on('remove', (msg) => { if (msg.isNewMsg) window.onRemoveMessageEvent(window.WWebJS.getMessageModel(msg)); });
+                window.Store.Msg.on('change:body change:caption', (msg, newBody, prevBody) => { window.onEditMessageEvent(window.WWebJS.getMessageModel(msg), newBody, prevBody); });
+                window.Store.Msg.on('add', (msg) => {
+                    if (msg.isNewMsg) {
+                        if(msg.type === 'ciphertext') {
+                            // defer message event until ciphertext is resolved (type changed)
+                            msg.once('change:type', (_msg) => window.onAddMessageEvent(window.WWebJS.getMessageModel(_msg)));
+                            window.onAddMessageCiphertextEvent(window.WWebJS.getMessageModel(msg));
+                        } else {
+                            window.onAddMessageEvent(window.WWebJS.getMessageModel(msg));
+                        }
+                    }
+                });
+            }
             window.Store.Conn.on('change:battery', (state) => { window.onBatteryStateChangedEvent(state); });
             const callCollection = (window.Store && window.Store.Call) || (window.Store && window.Store.WAWebCallCollection);
             if (callCollection && typeof callCollection.on === 'function') {
@@ -765,17 +785,7 @@ class Client extends EventEmitter {
             }
             window.Store.Chat.on('remove', async (chat) => { window.onRemoveChatEvent(await window.WWebJS.getChatModel(chat)); });
             window.Store.Chat.on('change:archive', async (chat, currState, prevState) => { window.onArchiveChatEvent(await window.WWebJS.getChatModel(chat), currState, prevState); });
-            window.Store.Msg.on('add', (msg) => { 
-                if (msg.isNewMsg) {
-                    if(msg.type === 'ciphertext') {
-                        // defer message event until ciphertext is resolved (type changed)
-                        msg.once('change:type', (_msg) => window.onAddMessageEvent(window.WWebJS.getMessageModel(_msg)));
-                        window.onAddMessageCiphertextEvent(window.WWebJS.getMessageModel(msg));
-                    } else {
-                        window.onAddMessageEvent(window.WWebJS.getMessageModel(msg)); 
-                    }
-                }
-            });
+            window.Store.AppState.on('change:state', (_AppState, state) => { window.onAppStateChangedEvent(state); });
             window.Store.Chat.on('change:unreadCount', (chat) => {window.onChatUnreadCountEvent(chat);});
 
             if (window.compareWwebVersions(window.Debug.VERSION, '>=', '2.3000.1014111620')) {
@@ -879,6 +889,20 @@ class Client extends EventEmitter {
      * Closes the client
      */
     async destroy() {
+        if (this.pupPage && !this.pupPage.isClosed()) {
+            try {
+                await this.pupPage.evaluate(() => {
+                    // Request persistence to ensure IndexedDB data is flushed
+                    if (navigator.storage && navigator.storage.persist) {
+                        return navigator.storage.persist();
+                    }
+                });
+            } catch (_) {
+                // Page may already be closed or navigated away
+            }
+            // Give browser time to flush any pending IndexedDB writes
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
         const browser = this.pupBrowser;
         const isConnected = browser?.isConnected?.();
         if (isConnected) {
