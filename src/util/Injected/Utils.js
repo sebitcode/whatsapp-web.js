@@ -52,10 +52,14 @@ exports.LoadUtils = () => {
             let quotedMessage = window.Store.Msg.get(options.quotedMessageId);
             !quotedMessage && (quotedMessage = (await window.Store.Msg.getMessagesById([options.quotedMessageId]))?.messages?.[0]);
             if (quotedMessage) {
-
-                const canReply = window.Store.ReplyUtils
+                let canReply = false;
+                try {
+                    canReply = window.Store.ReplyUtils
                     ? window.Store.ReplyUtils.canReplyMsg(quotedMessage.unsafe())
                     : quotedMessage.canReply();
+                } catch (error) {
+                    canReply = true;
+                }
 
                 if (canReply) {
                     quotedMsgOptions = quotedMessage.msgContextInfo(chat);
