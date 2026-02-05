@@ -287,10 +287,13 @@ class Client extends EventEmitter {
         await this.pupPage.evaluate(() => {
             window.AuthStore.AppState.on('change:state', (_AppState, state) => { window.onAuthAppStateChangedEvent(state); });
             window.AuthStore.AppState.on('change:hasSynced', () => { window.onAppStateHasSyncedEvent(); });
-            window.AuthStore.Cmd.on('offline_progress_update', () => {
+            window.AuthStore.Cmd.on('offline_progress_update_from_bridge', () => {
                 window.onOfflineProgressUpdateEvent(window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress()); 
             });
             window.AuthStore.Cmd.on('logout', async () => {
+                await window.onLogoutEvent();
+            });
+            window.AuthStore.Cmd.on('logout_from_bridge', async () => {
                 await window.onLogoutEvent();
             });
         });
