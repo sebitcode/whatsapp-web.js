@@ -739,6 +739,7 @@ class Client extends EventEmitter {
         });
 
         await this.pupPage.evaluate(() => {
+            window.Store.AppState.on('change:state', (_AppState, state) => { window.onAppStateChangedEvent(state); });
             if (!window.Store || !window.WWebJS) {
                 console.warn('[wwebjs] Store or WWebJS not available, skipping event listener registration');
                 return;
