@@ -777,9 +777,9 @@ class Client extends EventEmitter {
             //     });
             // }
             // Incoming call listener
-            if (window.Store.Call) {
-                window.Store.Call.on('add', (call) => { window.onIncomingCall(call); });
-            }
+            // if (window.Store.Call) {
+            //     window.Store.Call.on('add', (call) => { window.onIncomingCall(call); });
+            // }
             // Chat event listeners
             if (window.Store.Chat) {
                 window.Store.Chat.on('remove', async (chat) => { window.onRemoveChatEvent(await window.WWebJS.getChatModel(chat)); });
