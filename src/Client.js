@@ -739,12 +739,12 @@ class Client extends EventEmitter {
         });
 
         await this.pupPage.evaluate(() => {
+            // if (!window.Store || !window.WWebJS) {
+            //     console.warn('[wwebjs] Store or WWebJS not available, skipping event listener registration');
+            //     return;
+            // }
             window.Store.AppState.on('change:state', (_AppState, state) => { window.onAppStateChangedEvent(state); });
-            if (!window.Store || !window.WWebJS) {
-                console.warn('[wwebjs] Store or WWebJS not available, skipping event listener registration');
-                return;
-            }
-            
+            window.Store.Conn.on('change:battery', (state) => { window.onBatteryStateChangedEvent(state); });
             if (window.Store.Msg) {
                 window.Store.Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
                 window.Store.Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
@@ -765,17 +765,17 @@ class Client extends EventEmitter {
                 });
             }
             // App state listener
-            if (window.Store.AppState) {
-                window.Store.AppState.on('change:state', (_AppState, state) => {
-                    window.onAppStateChangedEvent(state);
-                });
-            }
+            // if (window.Store.AppState) {
+            //     window.Store.AppState.on('change:state', (_AppState, state) => {
+            //         window.onAppStateChangedEvent(state);
+            //     });
+            // }
             // Connection/battery listener
-            if (window.Store.Conn) {
-                window.Store.Conn.on('change:battery', (state) => {
-                    window.onBatteryStateChangedEvent(state);
-                });
-            }
+            // if (window.Store.Conn) {
+            //     window.Store.Conn.on('change:battery', (state) => {
+            //         window.onBatteryStateChangedEvent(state);
+            //     });
+            // }
             // Incoming call listener
             if (window.Store.Call) {
                 window.Store.Call.on('add', (call) => { window.onIncomingCall(call); });
@@ -790,23 +790,21 @@ class Client extends EventEmitter {
             }
 
             if (window.compareWwebVersions(window.Debug.VERSION, '>=', '2.3000.1014111620')) {
-                if (window.Store.AddonReactionTable) {
-                    const module = window.Store.AddonReactionTable;
-                    const ogMethod = module.bulkUpsert;
-                    module.bulkUpsert = ((...args) => {
-                        window.onReaction(args[0].map(reaction => {
-                            const msgKey = reaction.id;
-                            const parentMsgKey = reaction.reactionParentKey;
-                            const timestamp = reaction.reactionTimestamp / 1000;
-                            const sender = reaction.author ?? reaction.from;
-                            const senderUserJid = sender._serialized;
+                const module = window.Store.AddonReactionTable;
+                const ogMethod = module.bulkUpsert;
+                module.bulkUpsert = ((...args) => {
+                    window.onReaction(args[0].map(reaction => {
+                        const msgKey = reaction.id;
+                        const parentMsgKey = reaction.reactionParentKey;
+                        const timestamp = reaction.reactionTimestamp / 1000;
+                        const sender = reaction.author ?? reaction.from;
+                        const senderUserJid = sender._serialized;
 
-                            return {...reaction, msgKey, parentMsgKey, senderUserJid, timestamp};
-                        }));
+                        return {...reaction, msgKey, parentMsgKey, senderUserJid, timestamp };
+                    }));
 
-                        return ogMethod(...args);
-                    }).bind(module);
-                }
+                    return ogMethod(...args);
+                }).bind(module);
 
                 if (window.Store.AddonPollVoteTable) {
                     const pollVoteModule = window.Store.AddonPollVoteTable;
