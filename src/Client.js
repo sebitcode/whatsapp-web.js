@@ -743,8 +743,6 @@ class Client extends EventEmitter {
             //     console.warn('[wwebjs] Store or WWebJS not available, skipping event listener registration');
             //     return;
             // }
-            window.Store.AppState.on('change:state', (_AppState, state) => { window.onAppStateChangedEvent(state); });
-            window.Store.Conn.on('change:battery', (state) => { window.onBatteryStateChangedEvent(state); });
             if (window.Store.Msg) {
                 window.Store.Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
                 window.Store.Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
@@ -770,16 +768,16 @@ class Client extends EventEmitter {
             //         window.onAppStateChangedEvent(state);
             //     });
             // }
-            // Connection/battery listener
+            // // Connection/battery listener
             // if (window.Store.Conn) {
             //     window.Store.Conn.on('change:battery', (state) => {
             //         window.onBatteryStateChangedEvent(state);
             //     });
             // }
             // Incoming call listener
-            // if (window.Store.Call) {
-            //     window.Store.Call.on('add', (call) => { window.onIncomingCall(call); });
-            // }
+            if (window.Store.Call) {
+                window.Store.Call.on('add', (call) => { window.onIncomingCall(call); });
+            }
             // Chat event listeners
             if (window.Store.Chat) {
                 window.Store.Chat.on('remove', async (chat) => { window.onRemoveChatEvent(await window.WWebJS.getChatModel(chat)); });
