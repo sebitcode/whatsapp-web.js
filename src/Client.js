@@ -294,7 +294,7 @@ class Client extends EventEmitter {
                     window.onAppStateHasSyncedEvent();
                 }
             });
-            // appState.on('change:state', (_AppState, state) => { window.onAuthAppStateChangedEvent(state); });
+            appState.on('change:state', (_AppState, state) => { window.onAuthAppStateChangedEvent(state); });
             window.AuthStore.Cmd.on('offline_progress_update', () => {
                 window.onOfflineProgressUpdateEvent(window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress()); 
             });
